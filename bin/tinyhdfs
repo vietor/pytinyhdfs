@@ -1,0 +1,151 @@
+#!/usr/bin/env python
+# -*- coding: utf-8 -*-
+from __future__ import print_function, with_statement
+
+import os
+import sys
+import socket
+from pytinyhdfs import WebHDFS
+from pytinyhdfs import GZipUtil
+
+VERSION = "1.0.0"
+
+
+def command_ls(webhdfs, target_path):
+    status, reason, files = webhdfs.listdir(target_path)
+    if status != 200:
+        raise Exception("Put failed: [%d, %s]" % (status, reason))
+    print('Found {} items'.format(len(files)))
+    for row in files:
+        print('{:10s} {:12s} {:12s} {:12s} {}'.format(
+            row['permission'],
+            row['owner'],
+            row['group'],
+            row['size'],
+            row['name']
+        ))
+
+
+def command_get(webhdfs, target_path):
+    status, reason, files = webhdfs.listdir(target_path)
+    if status != 200:
+        raise Exception("Put failed: [%d, %s]" % (status, reason))
+    print('Found {} items'.format(len(files)))
+    for row in files:
+        print('{:10s} {:12s} {:12s} {:12s} {}'.format(
+            row['permission'],
+            row['owner'],
+            row['group'],
+            row['size'],
+            row['name']
+        ))
+
+
+def command_put(webhdfs, source_file, target_path, options):
+    compressed_file = None
+    source_filename = os.path.split(source_file)[1]
+    try:
+        upload_file = source_file
+        target_file = target_path.rstrip("/") + "/" + source_filename
+        if options.gzip and not upload_file.endswith('.gz'):
+            successed, compressed_file = GZipUtil.compress(upload_file)
+            if successed:
+                upload_file = compressed_file
+                target_file = target_file + ".gz"
+
+        status, reason = webhdfs.putFile(
+            upload_file, target_file, replication=options.replication
+        )
+        if status >= 200 and status < 400:
+            if options.deleteinput:
+                os.remove(source_file)
+        else:
+            raise Exception("Put failed: [%d, %s]" % (status, reason))
+        print("File: <%s>, Successed" % (source_file))
+    except Exception as e:
+        if isinstance(e, socket.timeout) \
+           or (hasattr(e, 'errno') and e.errno == 10061):
+            message = "Network error, {0}".format(e)
+        else:
+            message = "{0}".format(e)
+        raise Exception("File: <%s>, Exception: %s" % (source_file, message))
+    finally:
+        if compressed_file:
+            os.remove(compressed_file)
+            compressed_file = None
+
+################################################
+import re
+from optparse import *
+
+
+def die(message=None):
+    if message and len(message) > 0:
+        print(message)
+        sys.exit(0)
+
+
+def enforce_args(args, size):
+    if len(args) != size:
+        parser.print_help()
+        die()
+
+
+def parse_path(path):
+    if not path.startswith("hdfs:///"):
+        die("HDFS path must start with \"hdfs:///\"")
+    return path[7:]
+
+
+if __name__ == '__main__':
+    parser = OptionParser("%prog [options] <command>", version=VERSION)
+    parser.add_option("-H", "--host",
+                      dest="host",
+                      help="The server address for HDFS")
+    parser.add_option("-p", "--port",
+                      type="int", dest="port",
+                      default=50070,
+                      help="The server port for HDFS, default: 50070")
+    parser.add_option("-U", "--user",
+                      dest="user",
+                      default="root",
+                      help="The username for HDFS, default: root")
+
+    group = OptionGroup(parser, "ls <hdfs>",
+                        "List information about directory")
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "put <file> <hdfs>", "Upload file to HDFS")
+    group.add_option("-R", "--replication",
+                     type="int", dest="replication",
+                     default=2,
+                     help="The replication for upload, default: 2")
+    group.add_option("-G", "--gzip",
+                     action="store_true", dest="gzip",
+                     default=False,
+                     help="Try GZip compress before upload, file name append \".gz\"")
+    group.add_option("-D", "--delete",
+                     action="store_true", dest="deleteinput",
+                     default=False,
+                     help="Delete input file when upload success")
+    parser.add_option_group(group)
+
+    if len(sys.argv) > 1:
+        sys_argv = sys.argv
+    else:
+        sys_argv = [sys.argv[0], "--help"]
+
+    (options, args) = parser.parse_args(sys_argv)
+    if not options.host:
+        die("lost options: -H or --host")
+
+    args = args[1:]
+    webhdfs = WebHDFS(options.host, options.port, options.user, timeout=10)
+
+    if args[0] == "put":
+        enforce_args(args, 3)
+        command_put(webhdfs, args[1], parse_path(args[2]), options)
+
+    elif args[0] == "ls":
+        enforce_args(args, 2)
+        command_ls(webhdfs, parse_path(args[1]))
