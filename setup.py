@@ -25,10 +25,10 @@ if sys.argv[-1] == 'publish':
     sys.exit()
 
 setup(
-    name='pytinyhdfs',
+    name='tinyhdfs',
     version=VERSION,
     keywords='webhdfs, hdfs, hadoop',
-    description='Tiny client for HDFS in WebHDFS',
+    description='Tiny client for HDFS, base on WebHDFS',
     author='Vietor Liu',
     author_email='vietor.liu@gmail.com',
     url=GITHUB_URL,
