@@ -4,44 +4,50 @@ from __future__ import print_function, with_statement
 
 import os
 import sys
-import socket
 from pytinyhdfs import WebHDFS
 from pytinyhdfs import GZipUtil
 
 VERSION = "1.0.0"
 
 
+def _command_ls(webhdfs, target_path):
+    status, reason, files = webhdfs.listdir(target_path)
+    if status != 200:
+        raise Exception("List failed: [%d, %s]" % (status, reason))
+    print('Found {} items'.format(len(files)))
+    for row in files:
+        print('{:10s} {:12s} {:12s} {:12s} {}'.format(
+            row['permission'],
+            row['owner'],
+            row['group'],
+            row['size'],
+            row['name']
+        ))
+
+
 def command_ls(webhdfs, target_path):
-    status, reason, files = webhdfs.listdir(target_path)
+    try:
+        _command_ls(webhdfs, target_path)
+    except Exception as e:
+        print(e)
+
+
+def _command_get(webhdfs, target_file, local_path):
+    _, filename = os.path.split(target_file)
+    local_file = os.path.join(local_path, filename)
+    status, reason = webhdfs.getFile(target_file, local_file)
     if status != 200:
-        raise Exception("Put failed: [%d, %s]" % (status, reason))
-    print('Found {} items'.format(len(files)))
-    for row in files:
-        print('{:10s} {:12s} {:12s} {:12s} {}'.format(
-            row['permission'],
-            row['owner'],
-            row['group'],
-            row['size'],
-            row['name']
-        ))
+        raise Exception("Get failed: [%d, %s]" % (status, reason))
 
 
-def command_get(webhdfs, target_path):
-    status, reason, files = webhdfs.listdir(target_path)
-    if status != 200:
-        raise Exception("Put failed: [%d, %s]" % (status, reason))
-    print('Found {} items'.format(len(files)))
-    for row in files:
-        print('{:10s} {:12s} {:12s} {:12s} {}'.format(
-            row['permission'],
-            row['owner'],
-            row['group'],
-            row['size'],
-            row['name']
-        ))
+def command_get(webhdfs, target_file, local_path):
+    try:
+        _command_get(webhdfs, target_file, local_path)
+    except Exception as e:
+        print(e)
 
 
-def command_put(webhdfs, source_file, target_path, options):
+def _command_put(webhdfs, source_file, target_path, options):
     compressed_file = None
     source_filename = os.path.split(source_file)[1]
     try:
@@ -57,22 +63,25 @@ def command_put(webhdfs, source_file, target_path, options):
             upload_file, target_file, replication=options.replication
         )
         if status >= 200 and status < 400:
-            if options.deleteinput:
+            if options.delete_source:
                 os.remove(source_file)
         else:
             raise Exception("Put failed: [%d, %s]" % (status, reason))
         print("File: <%s>, Successed" % (source_file))
     except Exception as e:
-        if isinstance(e, socket.timeout) \
-           or (hasattr(e, 'errno') and e.errno == 10061):
-            message = "Network error, {0}".format(e)
-        else:
-            message = "{0}".format(e)
-        raise Exception("File: <%s>, Exception: %s" % (source_file, message))
+        raise Exception("File: <%s>, Exception: %s" %
+                        (source_file, "{0}".format(e)))
     finally:
         if compressed_file:
             os.remove(compressed_file)
             compressed_file = None
+
+
+def command_put(webhdfs, source_file, target_path, options):
+    try:
+        _command_put(webhdfs, source_file, target_path, options)
+    except Exception as e:
+        print(e)
 
 ################################################
 import re
@@ -89,9 +98,17 @@ def enforce_args(args, size):
     if len(args) != size:
         parser.print_help()
         die()
+    return len(args)
 
 
-def parse_path(path):
+def enforce_args2(args, size1, size2):
+    if len(args) != size1 and len(args) != size2:
+        parser.print_help()
+        die()
+    return len(args)
+
+
+def parse_hdfs_path(path):
     if not path.startswith("hdfs:///"):
         die("HDFS path must start with \"hdfs:///\"")
     return path[7:]
@@ -111,11 +128,16 @@ if __name__ == '__main__':
                       default="root",
                       help="The username for HDFS, default: root")
 
-    group = OptionGroup(parser, "ls <hdfs>",
+    group = OptionGroup(parser, "ls <hdfs-path>",
                         "List information about directory")
     parser.add_option_group(group)
 
-    group = OptionGroup(parser, "put <file> <hdfs>", "Upload file to HDFS")
+    group = OptionGroup(parser, "get <hdfs-file> [local-path]",
+                        "Download HDFS file to local")
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "put <file> <hdfs-path>",
+                        "Upload file to HDFS")
     group.add_option("-R", "--replication",
                      type="int", dest="replication",
                      default=2,
@@ -124,8 +146,8 @@ if __name__ == '__main__':
                      action="store_true", dest="gzip",
                      default=False,
                      help="Try GZip compress before upload, file name append \".gz\"")
-    group.add_option("-D", "--delete",
-                     action="store_true", dest="deleteinput",
+    group.add_option("-D", "--delete-source",
+                     action="store_true", dest="delete_source",
                      default=False,
                      help="Delete input file when upload success")
     parser.add_option_group(group)
@@ -142,10 +164,16 @@ if __name__ == '__main__':
     args = args[1:]
     webhdfs = WebHDFS(options.host, options.port, options.user, timeout=10)
 
-    if args[0] == "put":
-        enforce_args(args, 3)
-        command_put(webhdfs, args[1], parse_path(args[2]), options)
-
-    elif args[0] == "ls":
+    if args[0] == "ls":
         enforce_args(args, 2)
-        command_ls(webhdfs, parse_path(args[1]))
+        command_ls(webhdfs, parse_hdfs_path(args[1]))
+
+    elif args[0] == "get":
+        if enforce_args2(args, 3, 2) == 3:
+            command_get(webhdfs, parse_hdfs_path(args[1]), args[2])
+        else:
+            command_get(webhdfs, parse_hdfs_path(args[1]), os.getcwd())
+
+    elif args[0] == "put":
+        enforce_args(args, 3)
+        command_put(webhdfs, args[1], parse_hdfs_path(args[2]), options)

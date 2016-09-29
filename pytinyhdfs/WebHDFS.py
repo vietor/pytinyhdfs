@@ -5,6 +5,7 @@ import os
 import stat
 import json
 import mmap
+import socket
 import urllib
 import httplib
 import urlparse
@@ -41,24 +42,41 @@ class WebHDFS(object):
         self.timeout = timeout
 
     def __pure(self, host, port, method, url, body=None, read=False, storeobj=None):
-        data = None
-        httpClient = httplib.HTTPConnection(host, port, timeout=self.timeout)
-        httpClient.request(method, url, body, headers={})
+
+        def isNetworkError(e):
+            return isinstance(e, socket.timeout) \
+                or (hasattr(e, 'errno') and (e.errno == 10061 or e.errno == 61))
+
+        httpClient = None
         try:
+            data = None
+            httpClient = httplib.HTTPConnection(
+                host, port, timeout=self.timeout)
+            httpClient.request(method, url, body, headers={})
             response = httpClient.getresponse()
-            if read:
+            if response.status == 200 and read:
                 if not storeobj:
                     data = response.read()
                 else:
+                    storeobj.begin()
                     data = None
                     while True:
-                        buffer = response.read(8192)
-                        if not buffer:
+                        buf = response.read(8192)
+                        if not buf:
                             break
-                        storeobj.write(buffer)
+                        storeobj.write(buf)
+                    storeobj.end()
             return response, data
+        except Exception as e:
+            if storeobj:
+                storeobj.error(e)
+            if not isNetworkError(e):
+                raise e
+            else:
+                raise Exception("Network error, {0}".format(e))
         finally:
-            httpClient.close()
+            if httpClient:
+                httpClient.close()
 
     def __query(self, method, path, op, query=None, read=False):
         url = '/webhdfs/v1{0}?op={1}'.format(path, op)
@@ -145,6 +163,25 @@ class WebHDFS(object):
                 file_obj.close()
 
     def getFile(self, target_file, local_file):
-        with open(local_file, "wb") as file:
-            status, reason, _ = self.get(target_file, storeobj=file)
+
+        class StoreObj(object):
+
+            def __init__(self):
+                self._file = None
+
+            def begin(self):
+                self._file = open(local_file, "wb")
+
+            def write(self, data):
+                self._file.write(data)
+
+            def end(self):
+                self._file.close()
+
+            def error(self):
+                if self._file:
+                    self._file.close()
+                    os.remove(local_file)
+
+        status, reason, _ = self.get(target_file, storeobj=StoreObj())
         return status, reason
