@@ -4,8 +4,8 @@ from __future__ import print_function, with_statement
 
 import os
 import sys
-from pytinyhdfs import WebHDFS
-from pytinyhdfs import GZipUtil
+from pytinyhdfs.WebHDFS import WebHDFS
+from pytinyhdfs.GZipUtil import GZipUtil
 
 VERSION = "1.0.0"
 

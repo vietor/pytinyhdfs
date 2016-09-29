@@ -2,13 +2,27 @@
 from __future__ import division, with_statement
 
 import os
+import sys
 import stat
 import json
 import mmap
 import socket
-import urllib
-import httplib
-import urlparse
+
+if sys.version_info < (3, 0):
+    from urlparse import urlparse
+    from urllib import urlencode
+    from httplib import HTTPConnection
+else:
+    from urllib.parse import urlparse
+    from urllib.parse import urlencode
+    from http.client import HTTPConnection
+
+
+def py2or3str(s):
+    if bytes != str:
+        if type(s) == bytes:
+            return s.decode('utf-8')
+    return s
 
 
 def format_length(size):
@@ -50,8 +64,7 @@ class WebHDFS(object):
         httpClient = None
         try:
             data = None
-            httpClient = httplib.HTTPConnection(
-                host, port, timeout=self.timeout)
+            httpClient = HTTPConnection(host, port, timeout=self.timeout)
             httpClient.request(method, url, body, headers={})
             response = httpClient.getresponse()
             if response.status == 200 and read:
@@ -59,7 +72,6 @@ class WebHDFS(object):
                     data = response.read()
                 else:
                     storeobj.begin()
-                    data = None
                     while True:
                         buf = response.read(8192)
                         if not buf:
@@ -83,7 +95,7 @@ class WebHDFS(object):
         if self.username:
             url += '&user.name={0}'.format(self.username)
         if query:
-            url += '&{0}'.format(urllib.urlencode(query))
+            url += '&{0}'.format(urlencode(query))
         return self.__pure(self.host, self.port, method, url, read=read)
 
     def mkdir(self, path):
@@ -108,7 +120,7 @@ class WebHDFS(object):
             'PUT', target_file, 'CREATE', {'overwrite': 'true'})
         if response.status < 300 or response.status >= 400:
             return response.status, response.reason
-        result = urlparse.urlparse(response.msg["location"])
+        result = urlparse(response.msg["location"])
         redirect_host = result.netloc[:result.netloc.index(":")]
         redirect_port = result.netloc[(result.netloc.index(":") + 1):]
         redirect_path = result.path + "?" + result.query + \
@@ -126,7 +138,7 @@ class WebHDFS(object):
         response, _ = self.__query(
             'GET', target_file, 'OPEN', {'overwrite': 'true'})
         if response.length != None:
-            result = urlparse.urlparse(response.msg["location"])
+            result = urlparse(response.msg["location"])
             redirect_host = result.netloc[:result.netloc.index(":")]
             redirect_port = result.netloc[(result.netloc.index(":") + 1):]
             redirect_path = result.path + "?" + result.query
@@ -140,7 +152,7 @@ class WebHDFS(object):
         files = []
         response, data = self.__query('GET', path, 'LISTSTATUS', read=True)
         if data:
-            data_dict = json.loads(data)
+            data_dict = json.loads(py2or3str(data))
             if "FileStatuses" in data_dict:
                 statuses = data_dict["FileStatuses"]
                 for i in statuses["FileStatus"]:
@@ -178,9 +190,10 @@ class WebHDFS(object):
             def end(self):
                 self._file.close()
 
-            def error(self):
+            def error(self, e):
                 if self._file:
                     self._file.close()
+                    self._file = None
                     os.remove(local_file)
 
         status, reason, _ = self.get(target_file, storeobj=StoreObj())
