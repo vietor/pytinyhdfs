@@ -3,6 +3,7 @@
 from __future__ import print_function, with_statement
 
 import re
+import os
 import sys
 from setuptools import setup, find_packages
 
