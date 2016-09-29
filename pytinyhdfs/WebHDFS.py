@@ -27,7 +27,7 @@ def py2or3str(s):
 
 def format_length(size):
     def ffloat(v):
-        return '{:0.2f}'.format(v).rstrip('0').rstrip('.')
+        return '{0:0.2f}'.format(v).rstrip('0').rstrip('.')
 
     KB = 1024
     MB = 1024 * 1024
@@ -56,7 +56,6 @@ class WebHDFS(object):
         self.timeout = timeout
 
     def __pure(self, host, port, method, url, body=None, read=False, storeobj=None):
-
         def isNetworkError(e):
             return isinstance(e, socket.timeout) \
                 or (hasattr(e, 'errno') and (e.errno == 10061 or e.errno == 61))
@@ -167,15 +166,20 @@ class WebHDFS(object):
         return response.status, response.reason, files
 
     def putFile(self, local_file, target_file, replication=1):
-        with open(local_file, "rb") as file:
-            file_obj = mmap.mmap(file.fileno(), 0, access=mmap.ACCESS_READ)
+        with open(local_file, "rb") as rfile:
+            stat = os.fstat(rfile.fileno())
+            if stat.st_size < 1:
+                file_obj = rfile
+            else:
+                file_obj = mmap.mmap(
+                    rfile.fileno(), 0, access=mmap.ACCESS_READ)
             try:
                 return self.put(file_obj, target_file, replication)
             finally:
-                file_obj.close()
+                if stat.st_size > 0:
+                    file_obj.close()
 
     def getFile(self, target_file, local_file):
-
         class StoreObj(object):
 
             def __init__(self):

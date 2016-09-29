@@ -28,7 +28,7 @@ setup(
     name='pytinyhdfs',
     version=VERSION,
     keywords='webhdfs, hdfs',
-    description='Another WebHDFS tools',
+    description='Tiny client for HDFS in WebHDFS',
     author='Vietor Liu',
     author_email='vietor.liu@gmail.com',
     url=GITHUB_URL,

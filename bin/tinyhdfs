@@ -14,9 +14,9 @@ def _command_ls(webhdfs, target_path):
     status, reason, files = webhdfs.listdir(target_path)
     if status != 200:
         raise Exception("List failed: [%d, %s]" % (status, reason))
-    print('Found {} items'.format(len(files)))
+    print('Found {0} items'.format(len(files)))
     for row in files:
-        print('{:10s} {:12s} {:12s} {:12s} {}'.format(
+        print('{0:10s} {1:12s} {2:12s} {3:12s} {4}'.format(
             row['permission'],
             row['owner'],
             row['group'],
@@ -58,7 +58,6 @@ def _command_put(webhdfs, source_file, target_path, options):
             if successed:
                 upload_file = compressed_file
                 target_file = target_file + ".gz"
-
         status, reason = webhdfs.putFile(
             upload_file, target_file, replication=options.replication
         )
