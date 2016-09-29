@@ -27,22 +27,26 @@ if sys.argv[-1] == 'publish':
 setup(
     name='pytinyhdfs',
     version=VERSION,
-    keywords='webhdfs, hdfs',
+    keywords='webhdfs, hdfs, hadoop',
     description='Tiny client for HDFS in WebHDFS',
     author='Vietor Liu',
     author_email='vietor.liu@gmail.com',
     url=GITHUB_URL,
     download_url='{0}/tarball/{1}'.format(GITHUB_URL, VERSION),
     license='MIT',
+    packages=['pytinyhdfs'],
     scripts=['bin/tinyhdfs'],
     requires=[
         'python (>=2.6.0)',
     ],
     classifiers=[
+        "Topic :: System :: Filesystems",
         'Programming Language :: Python',
-        'Development Status :: 5 - Production/Stable',
-        'Natural Language :: English',
+        'Programming Language :: Python :: 2',
+        'Programming Language :: Python :: 3',
         'Environment :: Console',
+        'Natural Language :: English',
+        'Development Status :: 5 - Production/Stable',
         'Intended Audience :: System Administrators',
         'License :: OSI Approved :: MIT License'
     ]
