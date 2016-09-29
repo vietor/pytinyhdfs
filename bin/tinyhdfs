@@ -77,10 +77,33 @@ def _command_put(webhdfs, source_file, target_path, options):
 
 
 def command_put(webhdfs, source_file, target_path, options):
-    try:
-        _command_put(webhdfs, source_file, target_path, options)
-    except Exception as e:
-        print(e)
+    workdir, filename = os.path.split(source_file)
+    if "*" not in filename:
+        if not os.path.exists(source_file):
+            print("File not exists: " + source_file)
+        else:
+            try:
+                _command_put(webhdfs, source_file, target_path, options)
+            except Exception as e:
+                print(e)
+    else:
+        if len(workdir) < 1:
+            workdir = os.getcwd()
+        if not os.path.exists(workdir):
+            print("Path not exists: " + workdir)
+        else:
+            name_regexp = filename \
+                .replace(".", "\\.") \
+                .replace("*", ".*")
+            pattern = re.compile(name_regexp)
+            filenames = filter(lambda x: pattern.match(x), os.listdir(workdir))
+            for name in filenames:
+                try:
+                    _command_put(webhdfs, os.path.join(workdir, name),
+                                 target_path, options)
+                except Exception as e:
+                    print(e)
+
 
 ################################################
 import re
