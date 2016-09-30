@@ -9,6 +9,23 @@ from pytinyhdfs.GZipUtil import GZipUtil
 
 VERSION = "1.0.1"
 
+TYPE_FILE = 1
+TYPE_DIRECTORY = 2
+TYPE_MAYBE_DIRECTORY = 3
+
+
+def _check_type(webhdfs, target_path, ftype):
+    status, reason, fstatus = webhdfs.status(target_path)
+    if status != 200:
+        if status != 404 or ftype != TYPE_MAYBE_DIRECTORY:
+            raise Exception("Status failed: [%d, %s]" % (status, reason))
+    elif ftype == TYPE_FILE:
+        if fstatus['type'] != 'FILE':
+            raise Exception('Status failed: target type not FILE')
+    elif ftype == TYPE_DIRECTORY or ftype == TYPE_MAYBE_DIRECTORY:
+        if fstatus['type'] != 'DIRECTORY':
+            raise Exception('Status failed: target type not DIRECTORY')
+
 
 def _command_ls(webhdfs, target_path):
     status, reason, files = webhdfs.listdir(target_path)
@@ -27,6 +44,7 @@ def _command_ls(webhdfs, target_path):
 
 def command_ls(webhdfs, target_path):
     try:
+        _check_type(webhdfs, target_path, TYPE_DIRECTORY)
         _command_ls(webhdfs, target_path)
     except Exception as e:
         print(e)
@@ -42,6 +60,7 @@ def _command_get(webhdfs, target_file, local_path):
 
 def command_get(webhdfs, target_file, local_path):
     try:
+        _check_type(webhdfs, target_file, TYPE_FILE)
         _command_get(webhdfs, target_file, local_path)
     except Exception as e:
         print(e)
@@ -58,9 +77,9 @@ def _command_put(webhdfs, source_file, target_path, options):
             if successed:
                 upload_file = compressed_file
                 target_file = target_file + ".gz"
-        status, reason = webhdfs.putFile(
-            upload_file, target_file, replication=options.replication
-        )
+                status, reason = webhdfs.putFile(
+                    upload_file, target_file, replication=options.replication
+                )
         if status >= 200 and status < 400:
             if options.delete_source:
                 os.remove(source_file)
@@ -83,6 +102,7 @@ def command_put(webhdfs, source_file, target_path, options):
             print("File not exists: " + source_file)
         else:
             try:
+                _check_type(webhdfs, target_file, TYPE_MAYBE_DIRECTORY)
                 _command_put(webhdfs, source_file, target_path, options)
             except Exception as e:
                 print(e)
@@ -92,18 +112,62 @@ def command_put(webhdfs, source_file, target_path, options):
         if not os.path.exists(workdir):
             print("Path not exists: " + workdir)
         else:
-            name_regexp = filename \
-                .replace(".", "\\.") \
-                .replace("*", ".*")
-            pattern = re.compile(name_regexp)
-            filenames = filter(lambda x: pattern.match(x), os.listdir(workdir))
-            for name in filenames:
-                try:
-                    _command_put(webhdfs, os.path.join(workdir, name),
-                                 target_path, options)
-                except Exception as e:
-                    print(e)
+            try:
+                _check_type(webhdfs, target_file, TYPE_MAYBE_DIRECTORY)
+                pattern = re.compile(filename
+                                     .replace(".", "\\.")
+                                     .replace("*", ".*"))
+                filenames = filter(lambda x: pattern.match(x),
+                                   os.listdir(workdir))
+                for name in filenames:
+                    try:
+                        _command_put(webhdfs, os.path.join(workdir, name),
+                                     target_path, options)
+                    except Exception as e:
+                        print(e)
+            except Exception as e:
+                print(e)
 
+
+def _command_rm(webhdfs, target_file):
+    status, reason = webhdfs.delete(target_file)
+    if status != 200:
+        raise Exception("Delete failed: [%d, %s]" % (status, reason))
+
+
+def command_rm(webhdfs, target_file):
+    try:
+        _check_type(webhdfs, target_file, TYPE_FILE)
+        _command_rm(webhdfs, target_file)
+    except Exception as e:
+        print(e)
+
+
+def _command_rmdir(webhdfs, target_path, options):
+    status, reason = webhdfs.delete(target_path, options.recursive)
+    if status != 200:
+        raise Exception("Delete failed: [%d, %s]" % (status, reason))
+
+
+def command_rmdir(webhdfs, target_path, options):
+    try:
+        _check_type(webhdfs, target_path, TYPE_DIRECTORY)
+        _command_rmdir(webhdfs, target_path, options)
+    except Exception as e:
+        print(e)
+
+
+def _command_mkdir(webhdfs, target_path):
+    status, reason = webhdfs.mkdir(target_path)
+    if status != 200:
+        raise Exception("Create failed: [%d, %s]" % (status, reason))
+
+
+def command_mkdir(webhdfs, target_path):
+    try:
+        _command_mkdir(webhdfs, target_path)
+    except Exception as e:
+        print(e)
 
 ################################################
 import re
@@ -158,6 +222,22 @@ if __name__ == '__main__':
                         "List information about directory")
     parser.add_option_group(group)
 
+    group = OptionGroup(parser, "rm <hdfs-file>",
+                        "Remove file from HDFS")
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "rmdir <hdfs-path>",
+                        "Remove directory from HDFS")
+    group.add_option("-r", "--recursive",
+                     action="store_true", dest="recursive",
+                     default=False,
+                     help="Recursive delete child directory")
+    parser.add_option_group(group)
+
+    group = OptionGroup(parser, "mkdir <hdfs-path>",
+                        "Create directory in HDFS")
+    parser.add_option_group(group)
+
     group = OptionGroup(parser, "get <hdfs-file> [local-path]",
                         "Download HDFS file to local")
     parser.add_option_group(group)
@@ -204,6 +284,18 @@ if __name__ == '__main__':
     elif args[0] == "put":
         enforce_args(args, 3)
         command_put(webhdfs, args[1], parse_hdfs_path(args[2]), options)
+
+    elif args[0] == "rm":
+        enforce_args(args, 2)
+        command_rm(webhdfs, parse_hdfs_path(args[1]))
+
+    elif args[0] == "rmdir":
+        enforce_args(args, 2)
+        command_rmdir(webhdfs, parse_hdfs_path(args[1]), options)
+
+    elif args[0] == "mkdir":
+        enforce_args(args, 2)
+        command_mkdir(webhdfs, parse_hdfs_path(args[1]))
 
     else:
         die("Not found supported command!, use --help for more details")

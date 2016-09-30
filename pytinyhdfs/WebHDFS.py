@@ -103,11 +103,11 @@ class WebHDFS(object):
         response, _ = self.__query('PUT', path, 'MKDIRS')
         return response.status, response.reason
 
-    def rmdir(self, path):
+    def delete(self, path, recursive=False):
         if os.path.isabs(path) == False:
             raise Exception("Only absolute paths supported: %s" % (path))
         response, _ = self.__query(
-            'DELETE', path, 'DELETE', {'recursive': 'true'})
+            'DELETE', path, 'DELETE', {'recursive': 'true' if recursive else 'false'})
         return response.status, response.reason
 
     def put(self, data, target_file, replication=1):
@@ -156,6 +156,7 @@ class WebHDFS(object):
                 statuses = data_dict["FileStatuses"]
                 for i in statuses["FileStatus"]:
                     files.append({
+                        'type': i["type"],
                         'name': i["pathSuffix"],
                         'owner': i["owner"],
                         'group': i["group"],
@@ -164,6 +165,26 @@ class WebHDFS(object):
                         'permission': format_permission(i["type"] == 'DIRECTORY', i["permission"])
                     })
         return response.status, response.reason, files
+
+    def status(self, path):
+        if os.path.isabs(path) == False:
+            raise Exception("Only absolute paths supported: %s" % (path))
+        status = {}
+        response, data = self.__query('GET', path, 'GETFILESTATUS', read=True)
+        if data:
+            data_dict = json.loads(py2or3str(data))
+            if "FileStatus" in data_dict:
+                i = data_dict["FileStatus"]
+                status = {
+                    'type': i["type"],
+                    'name': i["pathSuffix"],
+                    'owner': i["owner"],
+                    'group': i["group"],
+                    'replication': i["replication"],
+                    'size': format_length(i["length"]),
+                    'permission': format_permission(i["type"] == 'DIRECTORY', i["permission"])
+                }
+        return response.status, response.reason, status
 
     def putFile(self, local_file, target_file, replication=1):
         with open(local_file, "rb") as rfile:
