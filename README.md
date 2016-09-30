@@ -18,26 +18,26 @@ pip install tinyhdfs
 tinyhdfs --help
 ```
 
-## ls <hdfs-path>
+## ls \<hdfs-path\>
 
 List information about directory
 
-## rm <hdfs-file>
+## rm <\hdfs-file\>
 
 Remove file from HDFS
 
-## rmdir <hdfs-path>
+## rmdir \<hdfs-path\>
 
 Remove directory from HDFS
 
-##  mkdir <hdfs-path>
+##  mkdir <\hdfs-path\>
 
 Create directory in HDFS
 
-## get <hdfs-file> [local-path]
+## get \<hdfs-file\> [local-path]
 
 Download HDFS file to local, default $PWD
 
-## put <local-file> <hdfs-path>
+## put <\local-file\> <\hdfs-path\>
 
 Upload file to HDFS, support "*" for multiple files
