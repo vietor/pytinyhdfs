@@ -213,7 +213,10 @@ def enforce_args2(args, size1, size2):
 
 def parse_hdfs_path(path):
     if not path.startswith("hdfs:///"):
-        die("HDFS path must start with \"hdfs:///\"")
+        if path.startswith("/"):
+            return path
+        else:
+            die("Parameter: HDFS path must start with \"hdfs:///\" or \"/\"")
     return path[7:]
 
 
