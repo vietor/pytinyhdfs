@@ -13,6 +13,7 @@ if sys.version_info < (3, 0):
     from urllib import urlencode
     from httplib import HTTPConnection
 else:
+    long = int
     from urllib.parse import urlparse
     from urllib.parse import urlencode
     from http.client import HTTPConnection
@@ -37,6 +38,7 @@ def format_fstatus(i):
         'group': i["group"],
         'replication': i["replication"],
         'size': i["length"],
+        'modified': long(i["modificationTime"] / 1000),
         'permission': permission(i["type"] == 'DIRECTORY', i["permission"])
     }
 
