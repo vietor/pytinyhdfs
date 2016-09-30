@@ -94,7 +94,7 @@ class WebHDFS(object):
             if not isNetworkError(e):
                 raise e
             else:
-                raise Exception("Network error, {0}".format(e))
+                raise Exception("Network error, {0}".format(e.strerror or e))
         finally:
             if httpClient:
                 httpClient.close()
