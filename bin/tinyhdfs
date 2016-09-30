@@ -4,8 +4,8 @@ from __future__ import division, print_function, with_statement
 
 import os
 import sys
-from pytinyhdfs.WebHDFS import WebHDFS
-from pytinyhdfs.GZipUtil import GZipUtil
+from pytinyhdfs import WebHDFS
+from pytinyhdfs import GZipUtil
 
 VERSION = "1.1.1"
 
