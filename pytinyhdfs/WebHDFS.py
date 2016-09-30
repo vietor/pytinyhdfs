@@ -49,10 +49,25 @@ class WebHDFS(object):
         self.username = hdfs_username
         self.timeout = timeout
 
-    def __pure(self, host, port, method, url, body=None, read=False, storeobj=None):
+    def __pure(self, host, port, method, url, body=None, storeobj=None):
         def isNetworkError(e):
             return isinstance(e, socket.timeout) \
                 or (hasattr(e, 'errno') and (e.errno == 10061 or e.errno == 61))
+
+        def renderResponse(response, data):
+            error_message = None
+            if response.status != 200 and data:
+                try:
+                    data_dict = json.loads(py2or3str(data))
+                    if 'RemoteException' in data_dict:
+                        rstatus = data_dict['RemoteException']
+                        if 'exception' in rstatus:
+                            error_message = rstatus['exception']
+                except:
+                    pass
+            if error_message:
+                response.reason = error_message
+            return response
 
         httpClient = None
         try:
@@ -60,18 +75,17 @@ class WebHDFS(object):
             httpClient = HTTPConnection(host, port, timeout=self.timeout)
             httpClient.request(method, url, body, headers={})
             response = httpClient.getresponse()
-            if response.status == 200 and read:
-                if not storeobj:
-                    data = response.read()
-                else:
-                    storeobj.begin()
-                    while True:
-                        buf = response.read(8192)
-                        if not buf:
-                            break
-                        storeobj.write(buf)
-                    storeobj.end()
-            return response, data
+            if not storeobj or response.status != 200:
+                data = response.read()
+            else:
+                storeobj.begin()
+                while True:
+                    buf = response.read(8192)
+                    if not buf:
+                        break
+                    storeobj.write(buf)
+                storeobj.end()
+            return renderResponse(response, data), data
         except Exception as e:
             if storeobj:
                 storeobj.error(e)
@@ -83,13 +97,13 @@ class WebHDFS(object):
             if httpClient:
                 httpClient.close()
 
-    def __query(self, method, path, op, query=None, read=False):
+    def __query(self, method, path, op, query=None):
         url = '/webhdfs/v1{0}?op={1}'.format(path, op)
         if self.username:
             url += '&user.name={0}'.format(self.username)
         if query:
             url += '&{0}'.format(urlencode(query))
-        return self.__pure(self.host, self.port, method, url, read=read)
+        return self.__pure(self.host, self.port, method, url)
 
     def mkdir(self, path):
         if os.path.isabs(path) == False:
@@ -135,14 +149,14 @@ class WebHDFS(object):
             redirect_port = result.netloc[(result.netloc.index(":") + 1):]
             redirect_path = result.path + "?" + result.query
             response, data = self.__pure(
-                redirect_host, redirect_port, 'GET', redirect_path, read=True, storeobj=storeobj)
+                redirect_host, redirect_port, 'GET', redirect_path, storeobj=storeobj)
         return response.status, response.reason, data
 
     def listdir(self, path):
         if os.path.isabs(path) == False:
             raise Exception("Only absolute paths supported: %s" % (path))
         files = []
-        response, data = self.__query('GET', path, 'LISTSTATUS', read=True)
+        response, data = self.__query('GET', path, 'LISTSTATUS')
         if data:
             data_dict = json.loads(py2or3str(data))
             if "FileStatuses" in data_dict:
@@ -155,7 +169,7 @@ class WebHDFS(object):
         if os.path.isabs(path) == False:
             raise Exception("Only absolute paths supported: %s" % (path))
         status = {}
-        response, data = self.__query('GET', path, 'GETFILESTATUS', read=True)
+        response, data = self.__query('GET', path, 'GETFILESTATUS')
         if data:
             data_dict = json.loads(py2or3str(data))
             if "FileStatus" in data_dict:
