@@ -271,7 +271,7 @@ if __name__ == '__main__':
     parser.add_option_group(group)
 
     group = OptionGroup(parser, "put <local-file> <hdfs-path>",
-                        "Upload file to HDFS")
+                        "Upload file to HDFS, support \"*\" for multiple files")
     group.add_option("-N", "--no-overwrite",
                      action="store_false", dest="overwrite",
                      default=True,
