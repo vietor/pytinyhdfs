@@ -194,7 +194,7 @@ from optparse import *
 def die(message=None):
     if message and len(message) > 0:
         print(message)
-        sys.exit(0)
+    sys.exit(0)
 
 
 def enforce_args(args, size):
@@ -216,15 +216,23 @@ def parse_hdfs_path(path):
         if path.startswith("/"):
             return path
         else:
-            die("Parameter: HDFS path must start with \"hdfs:///\" or \"/\"")
+            die("Parameter: HDFS URI must start with \"hdfs:///\" or \"/\"")
     return path[7:]
 
+
+def parse_hostname():
+    return os.getenv("TINYHDFS_HOST")
+
+
+def parse_username():
+    return os.getenv("USER") or os.getenv("USERNAME") or "root"
 
 if __name__ == '__main__':
     parser = OptionParser("%prog [options] <command>", version=VERSION)
     parser.add_option("-H", "--host",
                       dest="host",
-                      help="The server address for HDFS")
+                      default=parse_hostname(),
+                      help="The server address for HDFS, default: env[\"TINYHDFS_HOST\"]")
     parser.add_option("-p", "--port",
                       type="int", dest="port",
                       default=50070,
@@ -235,8 +243,8 @@ if __name__ == '__main__':
                       help="The timeout for HDFS connection, default: 10 (seconds)")
     parser.add_option("-U", "--user",
                       dest="user",
-                      default="root",
-                      help="The username for HDFS, default: root")
+                      default=parse_username(),
+                      help="The username connect for HDFS")
 
     group = OptionGroup(parser, "ls <hdfs-path>",
                         "List information about directory")
@@ -289,7 +297,7 @@ if __name__ == '__main__':
 
     (options, args) = parser.parse_args(sys_argv)
     if not options.host:
-        die("lost options: -H or --host")
+        die("lost options: -H or --host or env[\"TINYHDFS_HOST\"]")
 
     args = args[1:]
     webhdfs = WebHDFS(options.host, options.port, options.user,
