@@ -95,7 +95,8 @@ def _command_put(webhdfs, source_file, target_path, options):
                 upload_file = compressed_file
                 target_file = target_file + ".gz"
         status, reason = webhdfs.putFile(upload_file, target_file,
-                                         replication=options.replication)
+                                         replication=options.replication,
+                                         overwrite=options.overwrite)
         if status >= 200 and status < 400:
             if options.delete_source:
                 os.remove(source_file)
@@ -260,6 +261,10 @@ if __name__ == '__main__':
 
     group = OptionGroup(parser, "put <local-file> <hdfs-path>",
                         "Upload file to HDFS")
+    group.add_option("-N", "--no-overwrite",
+                     action="store_false", dest="overwrite",
+                     default=True,
+                     help="Disable overwrite exists file for upload")
     group.add_option("-R", "--replication",
                      type="int", dest="replication",
                      default=2,

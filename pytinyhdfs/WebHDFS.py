@@ -104,13 +104,13 @@ class WebHDFS(object):
             'DELETE', path, 'DELETE', {'recursive': 'true' if recursive else 'false'})
         return response.status, response.reason
 
-    def put(self, data, target_file, replication=1):
+    def put(self, data, target_file, replication=1, overwrite=True):
         if os.path.isabs(target_file) == False:
             raise Exception(
                 "Only absolute paths supported: %s" % (target_file)
             )
         response, _ = self.__query(
-            'PUT', target_file, 'CREATE', {'overwrite': 'true'})
+            'PUT', target_file, 'CREATE', {'overwrite': 'true' if overwrite else 'false'})
         if response.status < 300 or response.status >= 400:
             return response.status, response.reason
         result = urlparse(response.msg["location"])
@@ -128,8 +128,7 @@ class WebHDFS(object):
                 "Only absolute paths supported: %s" % (target_file)
             )
         data = None
-        response, _ = self.__query(
-            'GET', target_file, 'OPEN', {'overwrite': 'true'})
+        response, _ = self.__query('GET', target_file, 'OPEN')
         if response.length != None:
             result = urlparse(response.msg["location"])
             redirect_host = result.netloc[:result.netloc.index(":")]
@@ -163,7 +162,7 @@ class WebHDFS(object):
                 status = format_fstatus(data_dict["FileStatus"])
         return response.status, response.reason, status
 
-    def putFile(self, local_file, target_file, replication=1):
+    def putFile(self, local_file, target_file, replication=1, overwrite=True):
         with open(local_file, "rb") as rfile:
             stat = os.fstat(rfile.fileno())
             if stat.st_size < 1:
@@ -172,7 +171,7 @@ class WebHDFS(object):
                 file_obj = mmap.mmap(
                     rfile.fileno(), 0, access=mmap.ACCESS_READ)
             try:
-                return self.put(file_obj, target_file, replication)
+                return self.put(file_obj, target_file, replication, overwrite)
             finally:
                 if stat.st_size > 0:
                     file_obj.close()
