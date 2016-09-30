@@ -2,8 +2,11 @@
 # -*- coding: utf-8 -*-
 from __future__ import division, print_function, with_statement
 
+import re
 import os
 import sys
+from optparse import *
+
 from pytinyhdfs import WebHDFS
 from pytinyhdfs import GZipUtil
 
@@ -186,52 +189,43 @@ def command_mkdir(webhdfs, target_path):
     except Exception as e:
         print(e)
 
-################################################
-import re
-from optparse import *
 
+def main():
 
-def die(message=None):
-    if message and len(message) > 0:
-        print(message)
-    sys.exit(0)
+    def die(message=None):
+        if message and len(message) > 0:
+            print(message)
+        sys.exit(0)
 
+    def enforce_args(args, size):
+        if len(args) != size:
+            die("Command <%s>: Invalid paramters!, use --help for more details" %
+                args[0])
+        return len(args)
 
-def enforce_args(args, size):
-    if len(args) != size:
-        die("Command <%s>: Invalid paramters!, use --help for more details" %
-            args[0])
-    return len(args)
+    def enforce_args2(args, size1, size2):
+        if len(args) != size1 and len(args) != size2:
+            die("Command <%s>: Invalid paramters!, use --help for more details" %
+                args[0])
+        return len(args)
 
+    def parse_hdfs_path(path):
+        if not path.startswith("hdfs:///"):
+            if path.startswith("/"):
+                return path
+            else:
+                die("Parameter: HDFS URI must start with \"hdfs:///\" or \"/\"")
+        return path[7:]
 
-def enforce_args2(args, size1, size2):
-    if len(args) != size1 and len(args) != size2:
-        die("Command <%s>: Invalid paramters!, use --help for more details" %
-            args[0])
-    return len(args)
+    def parse_env_host():
+        return os.getenv("TINYHDFS_HOST")
 
+    def parse_env_port():
+        return int(os.getenv("TINYHDFS_PORT") or "50070")
 
-def parse_hdfs_path(path):
-    if not path.startswith("hdfs:///"):
-        if path.startswith("/"):
-            return path
-        else:
-            die("Parameter: HDFS URI must start with \"hdfs:///\" or \"/\"")
-    return path[7:]
+    def parse_username():
+        return os.getenv("USER") or os.getenv("USERNAME") or "root"
 
-
-def parse_env_host():
-    return os.getenv("TINYHDFS_HOST")
-
-
-def parse_env_port():
-    return int(os.getenv("TINYHDFS_PORT") or "50070")
-
-
-def parse_username():
-    return os.getenv("USER") or os.getenv("USERNAME") or "root"
-
-if __name__ == '__main__':
     parser = OptionParser("%prog [options] <command>", version=VERSION,
                           description="Tiny client for HDFS, base on WebHDFS")
     parser.add_option("-H", "--host",
@@ -336,3 +330,6 @@ if __name__ == '__main__':
 
     else:
         die("Not found supported command!, use --help for more details")
+
+if __name__ == '__main__':
+    main()
