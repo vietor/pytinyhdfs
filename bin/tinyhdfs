@@ -7,7 +7,7 @@ import sys
 from pytinyhdfs.WebHDFS import WebHDFS
 from pytinyhdfs.GZipUtil import GZipUtil
 
-VERSION = "1.0.1"
+VERSION = "1.1.0"
 
 TYPE_FILE = 1
 TYPE_DIRECTORY = 2
