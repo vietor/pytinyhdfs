@@ -134,7 +134,7 @@ def command_put(webhdfs, source_file, target_path, options):
                 pattern = re.compile(filename
                                      .replace(".", "\\.")
                                      .replace("*", ".*"))
-                filenames = filter(lambda x: pattern.match(x),
+                filenames = filter(lambda x: pattern.match(x) and os.path.isfile(os.path.join(workdir, x)),
                                    os.listdir(workdir))
                 for name in filenames:
                     try:
