@@ -22,7 +22,7 @@ tinyhdfs --help
 
 List information about directory
 
-## rm <\hdfs-file\>
+## rm \<hdfs-file\>
 
 Remove file from HDFS
 
@@ -30,7 +30,7 @@ Remove file from HDFS
 
 Remove directory from HDFS
 
-##  mkdir <\hdfs-path\>
+##  mkdir \<hdfs-path\>
 
 Create directory in HDFS
 
@@ -38,6 +38,6 @@ Create directory in HDFS
 
 Download HDFS file to local, default $PWD
 
-## put <\local-file\> <\hdfs-path\>
+## put \<local-file\> \<hdfs-path\>
 
 Upload file to HDFS, support "*" for multiple files
