@@ -25,26 +25,20 @@ def py2or3str(s):
     return s
 
 
-def format_length(size):
-    def ffloat(v):
-        return '{0:0.2f}'.format(v).rstrip('0').rstrip('.')
+def format_fstatus(i):
+    def permission(is_dir, perm):
+        dic = {'7': 'rwx', '6': 'rw-', '5': 'r-x', '4': 'r--', '0': '---'}
+        return ('d' if is_dir else '-') + ''.join(dic.get(x, x) for x in perm)
 
-    KB = 1024
-    MB = 1024 * 1024
-    GB = 1024 * 1024 * 1024
-    if size < KB:
-        return str(size) + ' B'
-    elif size < MB:
-        return ffloat(size / KB) + ' KB'
-    elif size < GB:
-        return ffloat(size / MB) + ' MB'
-    else:
-        return ffloat(size / GB) + ' GB'
-
-
-def format_permission(is_dir, perm):
-    dic = {'7': 'rwx', '6': 'rw-', '5': 'r-x', '4': 'r--', '0': '---'}
-    return ('d' if is_dir else '-') + ''.join(dic.get(x, x) for x in perm)
+    return {
+        'type': i["type"],
+        'name': i["pathSuffix"],
+        'owner': i["owner"],
+        'group': i["group"],
+        'replication': i["replication"],
+        'size': i["length"],
+        'permission': permission(i["type"] == 'DIRECTORY', i["permission"])
+    }
 
 
 class WebHDFS(object):
@@ -155,15 +149,7 @@ class WebHDFS(object):
             if "FileStatuses" in data_dict:
                 statuses = data_dict["FileStatuses"]
                 for i in statuses["FileStatus"]:
-                    files.append({
-                        'type': i["type"],
-                        'name': i["pathSuffix"],
-                        'owner': i["owner"],
-                        'group': i["group"],
-                        'replication': i["replication"],
-                        'size': format_length(i["length"]),
-                        'permission': format_permission(i["type"] == 'DIRECTORY', i["permission"])
-                    })
+                    files.append(format_fstatus(i))
         return response.status, response.reason, files
 
     def status(self, path):
@@ -174,16 +160,7 @@ class WebHDFS(object):
         if data:
             data_dict = json.loads(py2or3str(data))
             if "FileStatus" in data_dict:
-                i = data_dict["FileStatus"]
-                status = {
-                    'type': i["type"],
-                    'name': i["pathSuffix"],
-                    'owner': i["owner"],
-                    'group': i["group"],
-                    'replication': i["replication"],
-                    'size': format_length(i["length"]),
-                    'permission': format_permission(i["type"] == 'DIRECTORY', i["permission"])
-                }
+                status = format_fstatus(data_dict["FileStatus"])
         return response.status, response.reason, status
 
     def putFile(self, local_file, target_file, replication=1):

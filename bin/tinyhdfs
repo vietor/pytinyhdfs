@@ -27,6 +27,23 @@ def _check_type(webhdfs, target_path, ftype):
             raise Exception('Status failed: target type not DIRECTORY')
 
 
+def _format_size(size):
+    def ffloat(v):
+        return '{0:0.2f}'.format(v).rstrip('0').rstrip('.')
+
+    KB = 1024
+    MB = 1024 * 1024
+    GB = 1024 * 1024 * 1024
+    if size < KB:
+        return str(size) + ' B'
+    elif size < MB:
+        return ffloat(size / KB) + ' KB'
+    elif size < GB:
+        return ffloat(size / MB) + ' MB'
+    else:
+        return ffloat(size / GB) + ' GB'
+
+
 def _command_ls(webhdfs, target_path):
     status, reason, files = webhdfs.listdir(target_path)
     if status != 200:
@@ -37,7 +54,7 @@ def _command_ls(webhdfs, target_path):
             row['permission'],
             row['owner'],
             row['group'],
-            row['size'],
+            _format_size(row['size']),
             row['name']
         ))
 
