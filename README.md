@@ -25,7 +25,8 @@ Options:
   -h, --help            show this help message and exit
   -H HOST, --host=HOST  The server address for HDFS, default:
                         env["TINYHDFS_HOST"]
-  -p PORT, --port=PORT  The server port for HDFS, default: 50070
+  -p PORT, --port=PORT  The server port for HDFS, default:
+                        env["TINYHDFS_PORT"] or 50070
   -T TIMEOUT, --timeout=TIMEOUT
                         The timeout for HDFS connection, default: 10 (seconds)
   -U USER, --user=USER  The username connect for HDFS
