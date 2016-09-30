@@ -220,8 +220,12 @@ def parse_hdfs_path(path):
     return path[7:]
 
 
-def parse_hostname():
+def parse_env_host():
     return os.getenv("TINYHDFS_HOST")
+
+
+def parse_env_port():
+    return int(os.getenv("TINYHDFS_PORT") or "50070")
 
 
 def parse_username():
@@ -231,12 +235,12 @@ if __name__ == '__main__':
     parser = OptionParser("%prog [options] <command>", version=VERSION)
     parser.add_option("-H", "--host",
                       dest="host",
-                      default=parse_hostname(),
+                      default=parse_env_host(),
                       help="The server address for HDFS, default: env[\"TINYHDFS_HOST\"]")
     parser.add_option("-p", "--port",
                       type="int", dest="port",
-                      default=50070,
-                      help="The server port for HDFS, default: 50070")
+                      default=parse_env_port(),
+                      help="The server port for HDFS, default: env[\"TINYHDFS_PORT\"] or 50070")
     parser.add_option("-T", "--timeout",
                       type="int", dest="timeout",
                       default=10,
