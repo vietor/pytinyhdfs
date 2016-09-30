@@ -232,7 +232,8 @@ def parse_username():
     return os.getenv("USER") or os.getenv("USERNAME") or "root"
 
 if __name__ == '__main__':
-    parser = OptionParser("%prog [options] <command>", version=VERSION)
+    parser = OptionParser("%prog [options] <command>", version=VERSION,
+                          description="Tiny client for HDFS, base on WebHDFS")
     parser.add_option("-H", "--host",
                       dest="host",
                       default=parse_env_host(),
