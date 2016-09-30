@@ -77,9 +77,8 @@ def _command_put(webhdfs, source_file, target_path, options):
             if successed:
                 upload_file = compressed_file
                 target_file = target_file + ".gz"
-                status, reason = webhdfs.putFile(
-                    upload_file, target_file, replication=options.replication
-                )
+        status, reason = webhdfs.putFile(upload_file, target_file,
+                                         replication=options.replication)
         if status >= 200 and status < 400:
             if options.delete_source:
                 os.remove(source_file)
@@ -102,7 +101,7 @@ def command_put(webhdfs, source_file, target_path, options):
             print("File not exists: " + source_file)
         else:
             try:
-                _check_type(webhdfs, target_file, TYPE_MAYBE_DIRECTORY)
+                _check_type(webhdfs, target_path, TYPE_MAYBE_DIRECTORY)
                 _command_put(webhdfs, source_file, target_path, options)
             except Exception as e:
                 print(e)
@@ -113,7 +112,7 @@ def command_put(webhdfs, source_file, target_path, options):
             print("Path not exists: " + workdir)
         else:
             try:
-                _check_type(webhdfs, target_file, TYPE_MAYBE_DIRECTORY)
+                _check_type(webhdfs, target_path, TYPE_MAYBE_DIRECTORY)
                 pattern = re.compile(filename
                                      .replace(".", "\\.")
                                      .replace("*", ".*"))
