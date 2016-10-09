@@ -10,7 +10,7 @@ from optparse import *
 from pytinyhdfs import WebHDFS
 from pytinyhdfs import GZipUtil
 
-VERSION = "1.1.3"
+VERSION = "1.1.4"
 
 TYPE_FILE = 1
 TYPE_DIRECTORY = 2
