@@ -302,6 +302,10 @@ def main():
     webhdfs = WebHDFS(options.host, options.port, options.user,
                       timeout=options.timeout)
 
+    if len(args) < 1:
+        parser.print_help()
+        die()
+
     if args[0] == "ls":
         enforce_args(args, 2)
         command_ls(webhdfs, parse_hdfs_path(args[1]))
